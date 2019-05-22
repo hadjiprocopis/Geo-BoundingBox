@@ -1,85 +1,269 @@
-Geo-BoundingBox
+    Geo::BoundingBox - a bounding box on geographical coordinates
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+VERSION
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
+    Version 0.01
 
+SYNOPSIS
 
-INSTALLATION
+    Quick summary of what the module does.
 
-To install this module, run the following commands:
+    Perhaps a little code snippet.
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+        use Geo::BoundingBox;
+    
+        my $bbox = Geo::BoundingBox->new();
+        # make a square box of 100 meters side,
+        # centre the box at 40.596850, 43.083432 (LAT, LON)
+        $bbox->centred_at([40.596850, 43.083432, 100]);
+        # same
+        $bbox->centred_at(40.596850, 43.083432, 100);
+        # rectangle 100m x 200m
+        $bbox->centred_at(40.596850, 43.083432, 100, 200]);
+        # same
+        $bbox->centred_at(40.596850, 43.083432, 100, 200);
+        # same
+        $bbox->centred_at("40.596850:43.083432, 100x200");
+    
+        # or create a box specified by bottom-left and top-right coordinates (LAT,LON)
+        $bbox->bounded_by(40.595850, 43.082432, 40.597850, 43.084432);
+    
+        # overloaded stringify (prints bottom-left, top-right coordinates (LAT,LON))
+        print "box created $bbox\n";
+    
+        # make a much bigger bbox centred at same location
+        my $BBOX = Geo::BoundingBox->new();
+        $bbox->centred_at([40.596850, 43.083432, 1000]);
+    
+        if( $BBOX->encloses($bbox) ){ print "$BBOX encloses $bbox\n" }
+        if( $BBOX->equals($bbox, 3) ){ print "$BBOX equals $bbox to 3 decimal places\n" }
 
-SUPPORT AND DOCUMENTATION
+EXPORT
 
-After installing, you can find documentation for this module with the
-perldoc command.
+    parse_LATLON_bbox_string
 
-    perldoc Geo::BoundingBox
+    parse_centred_at_string
 
-You can also look for information at:
+SUBROUTINES/METHODS
 
-    RT, CPAN's request tracker (report bugs here)
-        https://rt.cpan.org/NoAuth/Bugs.html?Dist=Geo-BoundingBox
+ new()
 
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/Geo-BoundingBox
+    Constructor. It takes no parameters.
 
-    CPAN Ratings
-        https://cpanratings.perl.org/d/Geo-BoundingBox
+ centred_at(lat,lon,width[,height])
 
-    Search CPAN
-        https://metacpan.org/release/Geo-BoundingBox
+    Build the bounding box by specifying a centre (LAT,LON) a width and
+    optional height. It expects an array or arrayref of 3 or 4 items or a
+    string version of those. First two are (LAT,LON) of the centre, next is
+    width. Optional fourth is height. The string version can be comma
+    separated, or have the coordinate as colon separated followed by a
+    comma, then width and 'x' followed by height,
 
+    It returns 1 on success. It returns 0 on failure (invalid parameters).
+
+    The function to convert a centred-at specification to a bounding box of
+    two opposite corners was shamelessly copied with minor modifications
+    affecting the interface but not the calculations, from Geo::Calc's
+    boundry_box() (by Sorin Alexandru Pop). I have decided to do that
+    because I did not want to carry Moose baggage and include the full
+    Geo::Calc.
+
+ centred_at_from_string($str)
+
+    Like centred_at but all the parameters
+
+ bounded_by($left_bottom_lat, $left_bottom_lon, $right_top_lat,
+ $right_top_lon)
+
+    Build the bounding box by specifying a the coordinates (as LAT,LON) of
+    the bottom-left and top-right corners. It expects an array or arrayref
+    of exactly four items or a string version of those (comma, space or
+    colon separated).
+
+    It returns 1 on success. It returns 0 on failure (invalid parameters).
+
+ parse_centred_at_string($str)
+
+    A static exportable function which takes in an input string containing
+    a centred-at specification: centre-lat:centre-long,width[,height],
+    parses it and returns an arrayref of its items. Separators can be :x,
+    and space.
+
+ parse_bounded_by_string($str)
+
+    A static exportable function which takes in an input string containing
+    a bounding box:
+    bottom-left-lat:bottom-left-lon,top-right-lat:top-right-lon parses it
+    and returns an arrayref of its items. Separators can be :, and space.
+
+ <equals($obj[,$precision])>
+
+    Compares self with $obj up to $precision decimal places (that's the
+    number of digits after the funny dot, i.e. it does not include the
+    integer part). In avoids funny rounding initiatives by the interpreter
+    by multiplying the numbers by 10 ** $precision and then comparing the
+    integer parts.
+
+    It returns 1 if self's and $obj's corresponding coordinates are equal
+    to $precision decimal places. Default $precision is 5 decimal places
+    which amounts to 1.1 meter approximately.
+
+ <encloses($obj[,$precision])>
+
+    Checks if self encloses $obj up to $precision decimal places (that's
+    the number of digits after the funny dot, i.e. it does not include the
+    integer part). In avoids funny rounding initiatives by the interpreter
+    by multiplying the numbers by 10 ** $precision and then comparing the
+    integer parts.
+
+    The definition of encloses is that ALL coordinates of $obj fall inside
+    the bounding box of self. Inside does not mean onto. The checks are for
+    less-than and not for less-than-or-equal.
+
+    It returns 1 if self encloses $obj. Default $precision is 5 decimal
+    places which amounts to 1.1 meter approximately.
+
+ as_LATLON_bbox()
+
+    Return a reference to the internal bounding-box array (and not a new
+    array). The internal bounding-box array is
+    [bottom-left-lat,bottom-left-lon,top-right-lat,top-right-lon]
+
+ as_OSM_bbox()
+
+    Returns an arrayref of 4 items representing a bounding box following
+    OpenStreetMap (OSM) convention which puts LON first and LAT second:
+    [bottom-left-lon,bottom-left-lat,top-right-lon,top-right-lat]
+
+ stringify_as_OSM_bbox()
+
+    It returns a string representation (comma separated) of the array
+    returned by as_OSM_bbox().
+
+ stringify_as_LATLON_bbox()
+
+    It returns a string representation (comma separated) of the array
+    returned by as_LATLON_bbox().
+
+ stringify_as_OSM_bbox_query_xml()
+
+    It returns a string to be used as a bbox-query for the OpenStreetMap
+    (OSM) Overpass API. This is an XML string tagged "bbox-query" with for
+    items
+
+      head min_lon()
+
+      It returns the longitude of the bottom-left corner.
+
+      head min_lat()
+
+      It returns the latitude of the bottom-left corner.
+
+      head max_lon()
+
+      It returns the longitude of the top-right corner.
+
+      head max_lat()
+
+      It returns the latitude of the top-right corner.
+
+AUTHOR
+
+    Andreas Hadjiprocopis, <bliako at cpan.org>
+
+    The original author of the function (Geo::BoundingBox::_boundry_box) to
+    convert a centred-at specification to a bounding box is Sorin Alexandru
+    Pop (see https://metacpan.org/pod/Geo::Calc)
+
+BUGS
+
+    Please report any bugs or feature requests to bug-geo-bbox at
+    rt.cpan.org, or through the web interface at
+    https://rt.cpan.org/NoAuth/ReportBug.html?Queue=Geo-BoundingBox. I will
+    be notified, and then you'll automatically be notified of progress on
+    your bug as I make changes.
+
+SUPPORT
+
+    You can find documentation for this module with the perldoc command.
+
+        perldoc Geo::BoundingBox
+
+    You can also look for information at:
+
+      * RT: CPAN's request tracker (report bugs here)
+
+      https://rt.cpan.org/NoAuth/Bugs.html?Dist=Geo-BoundingBox
+
+      * AnnoCPAN: Annotated CPAN documentation
+
+      http://annocpan.org/dist/Geo-BoundingBox
+
+      * CPAN Ratings
+
+      https://cpanratings.perl.org/d/Geo-BoundingBox
+
+      * Search CPAN
+
+      https://metacpan.org/release/Geo-BoundingBox
+
+ACKNOWLEDGEMENTS
 
 LICENSE AND COPYRIGHT
 
-Copyright (C) 2019 Andreas Hadjiprocopis
+    Copyright 2019 Andreas Hadjiprocopis.
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the the Artistic License (2.0). You may obtain a
-copy of the full license at:
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the the Artistic License (2.0). You may obtain a
+    copy of the full license at:
 
-L<http://www.perlfoundation.org/artistic_license_2_0>
+    http://www.perlfoundation.org/artistic_license_2_0
 
-Any use, modification, and distribution of the Standard or Modified
-Versions is governed by this Artistic License. By using, modifying or
-distributing the Package, you accept this license. Do not use, modify,
-or distribute the Package, if you do not accept this license.
+    Any use, modification, and distribution of the Standard or Modified
+    Versions is governed by this Artistic License. By using, modifying or
+    distributing the Package, you accept this license. Do not use, modify,
+    or distribute the Package, if you do not accept this license.
 
-If your Modified Version has been derived from a Modified Version made
-by someone other than you, you are nevertheless required to ensure that
-your Modified Version complies with the requirements of this license.
+    If your Modified Version has been derived from a Modified Version made
+    by someone other than you, you are nevertheless required to ensure that
+    your Modified Version complies with the requirements of this license.
 
-This license does not grant you the right to use any trademark, service
-mark, tradename, or logo of the Copyright Holder.
+    This license does not grant you the right to use any trademark, service
+    mark, tradename, or logo of the Copyright Holder.
 
-This license includes the non-exclusive, worldwide, free-of-charge
-patent license to make, have made, use, offer to sell, sell, import and
-otherwise transfer the Package with respect to any patent claims
-licensable by the Copyright Holder that are necessarily infringed by the
-Package. If you institute patent litigation (including a cross-claim or
-counterclaim) against any party alleging that the Package constitutes
-direct or contributory patent infringement, then this Artistic License
-to you shall terminate on the date that such litigation is filed.
+    This license includes the non-exclusive, worldwide, free-of-charge
+    patent license to make, have made, use, offer to sell, sell, import and
+    otherwise transfer the Package with respect to any patent claims
+    licensable by the Copyright Holder that are necessarily infringed by
+    the Package. If you institute patent litigation (including a
+    cross-claim or counterclaim) against any party alleging that the
+    Package constitutes direct or contributory patent infringement, then
+    this Artistic License to you shall terminate on the date that such
+    litigation is filed.
 
-Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
-AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
-THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
-YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
-CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
-CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
+    AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
+    THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+    PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
+    YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
+    CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
+    CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
+    EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+POD ERRORS
+
+    Hey! The above document had some coding errors, which are explained
+    below:
+
+    Around line 81:
+
+      Unterminated C<...> sequence
+
+    Around line 165:
+
+      =over should be: '=over' or '=over positive_number'
+
+    Around line 189:
+
+      You forgot a '=back' before '=head1'
 

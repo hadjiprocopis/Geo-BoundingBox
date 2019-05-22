@@ -346,7 +346,7 @@ sub _destination_point {
 	};
 }
 # pod starts here
-
+=encoding utf8
 =head1 NAME
 
 Geo::BoundingBox - a bounding box on geographical coordinates
